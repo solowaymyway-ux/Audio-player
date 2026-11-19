@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#090d16" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Многослойный Аудиоплеер 5x</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            studio: {
+              950: '#090d16',
+              900: '#0f1624',
+              850: '#151f32',
+              800: '#1c2841',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #090d16;
+      color: #f8fafc;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: none;
+    }
+
+    /* Удобные мобильные ползунки с крупной зоной касания */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+      height: 28px;
+      touch-action: pan-y;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 8px;
+      border-radius: 9999px;
+      background: #1e293b;
+      border: 1px solid rgba(51, 65, 85, 0.6);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -8px;
+      background-color: #38bdf8;
+      height: 22px;
+      width: 22px;
+      border-radius: 50%;
+      border: 2px solid #090d16;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
+      transition: transform 0.1s ease, background-color 0.15s ease;
+    }
+
+    input[type="range"]:active::-webkit-slider-thumb {
+      transform: scale(1.18);
+      background-color: #7dd3fc;
+    }
+
+    input[type="range"]:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Компактные ползунки эффектов и перемотки */
+    input[type="range"].compact-slider {
+      height: 24px;
+    }
+    input[type="range"].compact-slider::-webkit-slider-runnable-track {
+      height: 6px;
+      background: #0b111e;
+    }
+    input[type="range"].compact-slider::-webkit-slider-thumb {
+      height: 18px;
+      width: 18px;
+      margin-top: -7px;
+    }
+
+    input[type="range"].pitch-slider::-webkit-slider-thumb {
+      background-color: #a855f7;
+    }
+    input[type="range"].pitch-slider:active::-webkit-slider-thumb {
+      background-color: #c084fc;
+    }
+
+    input[type="range"].speed-slider::-webkit-slider-thumb {
+      background-color: #10b981;
+    }
+    input[type="range"].speed-slider:active::-webkit-slider-thumb {
+      background-color: #34d399;
+    }
+
+    /* Стилизация скроллбара */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-24 select-none">
+
+  <!-- Всплывающие уведомления (вместо alert) -->
+  <div id="toast-container" class="fixed top-3 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-[580px] pointer-events-none flex flex-col gap-2"></div>
+
+  <!-- Верхняя закреплённая панель: Мастер-контроль, Тест звука и Детектор шума -->
+  <header class="sticky top-0 z-30 bg-studio-900/95 backdrop-blur-md border-b border-slate-800/90 shadow-2xl">
+    <div class="max-w-[600px] mx-auto px-3.5 py-3 space-y-2.5">
+
+      <!-- Строка 1: Бренд, Тест звука и общие кнопки Play / Pause / Stop -->
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h1 class="text-sm font-extrabold tracking-tight text-white truncate">МультиПлеер 5x</h1>
+            <p class="text-[11px] text-slate-400 truncate" id="active-layers-status">Активно слоёв: 0 из 5 • PCM</p>
+          </div>
+        </div>
+
+        <!-- Тест звука и общие кнопки транспорта -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="test-sound-btn" title="Проверить вывод звука" class="min-h-[40px] px-2.5 rounded-xl bg-indigo-950/90 hover:bg-indigo-900 active:scale-95 text-indigo-200 border border-indigo-500/40 font-semibold text-xs flex items-center gap-1 transition">
+            <span>🔊</span>
+            <span class="hidden sm:inline">Тест звука</span>
+            <span class="sm:hidden">Тест</span>
+          </button>
+
+          <button id="master-play-btn" title="Старт всех слоёв" class="min-h-[40px] px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-semibold text-xs flex items-center gap-1 transition shadow-md shadow-emerald-950">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span>Старт всех</span>
+          </button>
+
+          <button id="master-pause-btn" title="Пауза всех слоёв" class="min-h-[40px] min-w-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 flex items-center justify-center transition border border-slate-700">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+
+          <button id="master-stop-btn" title="Стоп всех слоёв" class="min-h-[40px] min-w-[40px] rounded-xl bg-rose-950/80 hover:bg-rose-900 active:scale-95 text-rose-300 flex items-center justify-center transition border border-rose-800/60">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Строка 2: Общая громкость (Мастер) + Индикатор выходного пика -->
+      <div class="bg-studio-850 rounded-xl p-2.5 border border-slate-800/90">
+        <div class="flex items-center justify-between text-xs mb-1">
+          <span class="font-medium text-slate-300 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            </svg>
+            Общая громкость
+          </span>
+          <div class="flex items-center gap-2">
+            <span id="auto-gain-badge" class="hidden text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold tabular-nums">
+              Авто: <span id="effective-master-val">75%</span>
+            </span>
+            <span id="master-volume-label" class="font-bold text-sky-400 tabular-nums">75%</span>
+          </div>
+        </div>
+
+        <input type="range" id="master-volume-slider" min="0" max="100" value="75" class="w-full" />
+
+        <!-- Индикатор выходного сигнала микшера -->
+        <div class="flex items-center gap-2 mt-1">
+          <span class="text-[10px] text-slate-400 shrink-0">Выход:</span>
+          <div class="flex-1 h-1.5 bg-studio-950 rounded-full overflow-hidden border border-slate-800/80">
+            <div id="master-peak-bar" class="h-full w-0 bg-gradient-to-r from-sky-500 via-emerald-400 to-amber-400 transition-all duration-75"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Строка 3: Детектор окружающего шума и адаптивная автоподстройка -->
+      <div class="bg-studio-850 rounded-xl p-2.5 border border-slate-800/90">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <div id="mic-indicator" class="w-2.5 h-2.5 rounded-full bg-slate-600 transition-colors"></div>
+            <span class="text-xs font-semibold text-slate-200">Автоподстройка под шум</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="toggle-noise-settings-btn" class="min-h-[34px] text-[11px] text-slate-300 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 font-medium">
+              Настройки
+            </button>
+            <button id="noise-auto-toggle" role="switch" aria-checked="false" class="relative inline-flex h-7 w-12 items-center rounded-full bg-slate-700 transition-colors focus:outline-none">
+              <span id="noise-auto-thumb" class="inline-block h-5 w-5 transform rounded-full bg-white transition-transform translate-x-1 shadow"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Индикаторы шума, усиления и ручные ползунки SNR / Плавности -->
+        <div id="noise-meter-container" class="hidden mt-2.5 space-y-2.5 pt-2.5 border-t border-slate-800">
+          <div class="grid grid-cols-1 gap-2">
+            <!-- Шкала окружающего шума -->
+            <div>
+              <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                <span>Уровень шума среды: <strong id="noise-level-text" class="text-slate-200 tabular-nums">0%</strong></span>
+                <span>Авто-усиление: <strong id="gain-boost-text" class="text-amber-400 tabular-nums">+0%</strong></span>
+              </div>
+              <div class="w-full h-2 bg-studio-950 rounded-full overflow-hidden border border-slate-800">
+                <div id="noise-bar" class="h-full w-0 rounded-full bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500 transition-all duration-75"></div>
+              </div>
+            </div>
+
+            <!-- Шкала итоговой применённой громкости -->
+            <div>
+              <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                <span>Итоговая громкость сигнала</span>
+                <strong id="final-gain-text" class="text-emerald-400 tabular-nums">75%</strong>
+              </div>
+              <div class="w-full h-2 bg-studio-950 rounded-full overflow-hidden border border-slate-800">
+                <div id="applied-gain-bar" class="h-full w-[75%] rounded-full bg-emerald-500 transition-all duration-75"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ручная настройка соотношения Сигнал / Шум -->
+          <div class="space-y-2 pt-1">
+            <div>
+              <div class="flex justify-between text-xs mb-0.5">
+                <span class="text-slate-300 font-medium">Соотношение Сигнал / Шум</span>
+                <span id="snr-ratio-label" class="text-amber-400 font-bold tabular-nums">+25%</span>
+              </div>
+              <input type="range" id="snr-ratio-slider" min="-30" max="80" value="25" class="w-full compact-slider" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <div class="flex justify-between text-[11px] text-slate-400 mb-0.5">
+                  <span>Чувствительность</span>
+                  <span id="sensitivity-label" class="text-slate-200 font-semibold tabular-nums">1.3x</span>
+                </div>
+                <input type="range" id="sensitivity-slider" min="5" max="25" value="13" class="w-full compact-slider" />
+              </div>
+              <div>
+                <div class="flex justify-between text-[11px] text-slate-400 mb-0.5">
+                  <span>Плавность</span>
+                  <span id="smoothing-label" class="text-slate-200 font-semibold">Средняя</span>
+                </div>
+                <input type="range" id="smoothing-slider" min="1" max="10" value="5" class="w-full compact-slider" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Диагностический баннер на случай 0 байт в Android WebView -->
+  <div id="webview-zero-bytes-banner" class="hidden max-w-[600px] mx-auto px-3.5 pt-3">
+    <div class="bg-rose-950/90 border border-rose-500/60 rounded-2xl p-3.5 shadow-xl space-y-2">
+      <div class="flex items-start gap-2.5">
+        <span class="text-lg leading-none">⚠️</span>
+        <div class="space-y-1 text-xs">
+          <h3 class="font-bold text-rose-200">Файл прочитан как 0 байт (ограничение WebView)</h3>
+          <p class="text-rose-100/90 leading-relaxed">
+            Встроенный браузер внутри приложения блокирует доступ к локальным файлам Android и передаёт пустой поток (0 Б).
+          </p>
+          <p class="text-amber-200 font-medium leading-relaxed">
+            Решение: нажмите меню (⋮ или значок браузера в углу экрана) и выберите <strong>«Открыть в браузере» (Google Chrome)</strong> — там файлы с памяти телефона загружаются напрямую.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Основной контейнер для 5 независимых аудио-слоёв -->
+  <main class="max-w-[600px] mx-auto px-3.5 pt-3.5 space-y-3.5" id="layers-container">
+    <!-- Карточки слоёв генерируются через JavaScript -->
+  </main>
+
+  <!-- Скрытый input БЕЗ ограничивающего accept, чтобы Android открывал полный системный проводник -->
+  <input type="file" id="global-file-input" multiple class="hidden" />
+
+  <script>
+    /**
+     * Многослойный аудиоплеер (5 слоёв) на базе чистого Web Audio API PCM-микшера.
+     * Не использует теги <audio> и blob: URLs, чтобы исключить ошибки 0 байт и блокировки
+     * MediaPlayer на Android / MIUI, а также обеспечить работу скорости до 10.00x
+     * и гранулярного питча от -48 до +48 полутонов.
+     */
+
+    // =========================================================================
+    // 1. УТИЛИТЫ И УВЕДОМЛЕНИЯ
+    // =========================================================================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = {
+        info: 'bg-slate-800 border-sky-500/60 text-slate-100',
+        success: 'bg-emerald-950 border-emerald-500/60 text-emerald-100',
+        error: 'bg-rose-950 border-rose-500/60 text-rose-100',
+        warning: 'bg-amber-950 border-amber-500/60 text-amber-100'
+      };
+      toast.className = `${colors[type] || colors.info} border px-3.5 py-2.5 rounded-xl shadow-2xl text-xs font-medium flex items-center justify-between gap-2 transition-all duration-200 opacity-0 -translate-y-2`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('opacity-0', '-translate-y-2');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-2');
+        setTimeout(() => toast.remove(), 250);
+      }, 3600);
+    }
+
+    function formatTime(seconds) {
+      if (!isFinite(seconds) || isNaN(seconds) || seconds < 0) return '0:00';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Резервное чтение файла через FileReader, если file.arrayBuffer() недоступен
+    function readFileAsArrayBufferFallback(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error('Ошибка чтения FileReader'));
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    // =========================================================================
+    // 2. СОСТОЯНИЕ ПРИЛОЖЕНИЯ И 5 АУДИО-СЛОЁВ
+    // =========================================================================
+    const LAYER_COUNT = 5;
+    const GRAIN_SIZE = 2048; // Размер окна гранулярного синтеза в сэмплах
+
+    const LAYER_THEMES = [
+      { border: 'border-sky-500/50', badge: 'bg-sky-500/20 text-sky-300 border-sky-500/30', accent: 'text-sky-400' },
+      { border: 'border-emerald-500/50', badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', accent: 'text-emerald-400' },
+      { border: 'border-violet-500/50', badge: 'bg-violet-500/20 text-violet-300 border-violet-500/30', accent: 'text-violet-400' },
+      { border: 'border-amber-500/50', badge: 'bg-amber-500/20 text-amber-300 border-amber-500/30', accent: 'text-amber-400' },
+      { border: 'border-rose-500/50', badge: 'bg-rose-500/20 text-rose-300 border-rose-500/30', accent: 'text-rose-400' },
+    ];
+
+    const state = {
+      masterVolume: 75,          // Ручная базовая громкость (0..100)
+      effectiveMasterVolume: 75, // Итоговая громкость с учётом автоподстройки под шум
+      noiseAutoEnabled: false,
+      snrOffset: 25,             // Соотношение сигнал/шум (-30..+80)
+      sensitivity: 1.3,          // Чувствительность реакции на шум
+      smoothing: 0.15,           // Коэффициент плавности
+      currentNoisePercent: 0,
+      targetFileLayerIndex: null,
+      layers: []
+    };
+
+    // Создаём 5 независимых слоёв с состоянием гранулярного движка
+    for (let i = 0; i < LAYER_COUNT; i++) {
+      state.layers.push({
+        id: i,
+        name: `Слой ${i + 1}`,
+        playlist: [],          // [{ id, name, fileName, fileSize, file, audioBuffer, duration, status, errorMsg }]
+        currentIndex: -1,
+        isPlaying: false,
+        playhead: 0,           // Текущая позиция в сэмплах исходного AudioBuffer
+        grainPhase: 0,         // Фаза гранулярного окна [0..1)
+        grain1Start: 0,        // Якорная позиция 1-й гранулы в AudioBuffer
+        grain2Start: 0,        // Якорная позиция 2-й гранулы (со сдвигом 0.5)
+        volume: 85,            // Громкость слоя (0..100)
+        pitchSemitones: 0,     // Питч (-48..+48 полутонов)
+        playbackSpeed: 1.0,    // Скорость (0.25x..10.00x)
+        muted: false,
+        solo: false,
+        loopMode: 'playlist',  // 'playlist' | 'track' | 'none'
+        playlistExpanded: false
+      });
+    }
+
+    // =========================================================================
+    // 3. PURE WEB AUDIO API PCM ENGINE (ScriptProcessorNode 4096)
+    // =========================================================================
+    let audioCtx = null;
+    let masterGainNode = null;
+    let mixerScriptNode = null;
+    let keepAliveSource = null;
+    let masterPeakLevel = 0;
+
+    // Параметры встроенного тестового сигнала ("Тест звука")
+    const chimeState = {
+      active: false,
+      sampleIndex: 0,
+      totalSamples: 0,
+      sampleRate: 44100
+    };
+
+    // Флаги отложенных действий из аудио-потока в основной UI-поток
+    const pendingEndedLayers = new Set();
+    let uiSyncScheduled = false;
+
+    function initAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+
+        masterGainNode = audioCtx.createGain();
+        masterGainNode.gain.value = state.effectiveMasterVolume / 100;
+
+        // Единый 5-канальный гранулярный PCM-микшер (bufferSize = 4096, 1 вход, 2 выхода)
+        mixerScriptNode = audioCtx.createScriptProcessor(4096, 1, 2);
+        mixerScriptNode.onaudioprocess = processAudioMix;
+
+        // Обязательный тихий источник на входе ScriptProcessorNode,
+        // чтобы Chromium / Android Chrome никогда не усыплял onaudioprocess
+        const silentGain = audioCtx.createGain();
+        silentGain.gain.value = 0;
+        if (typeof audioCtx.createConstantSource === 'function') {
+          keepAliveSource = audioCtx.createConstantSource();
+          keepAliveSource.offset.value = 0;
+          keepAliveSource.connect(silentGain);
+          keepAliveSource.start();
+        } else {
+          keepAliveSource = audioCtx.createOscillator();
+          keepAliveSource.frequency.value = 220;
+          keepAliveSource.connect(silentGain);
+          keepAliveSource.start();
+        }
+
+        silentGain.connect(mixerScriptNode);
+        mixerScriptNode.connect(masterGainNode);
+        masterGainNode.connect(audioCtx.destination);
+      }
+      return audioCtx;
+    }
+
+    async function ensureAudioResumed() {
+      const ctx = initAudioContext();
+      if (ctx.state === 'suspended') {
+        try {
+          await ctx.resume();
+        } catch (err) {
+          console.warn('Не удалось возобновить AudioContext:', err);
+        }
+      }
+      return ctx;
+    }
+
+    // Линейная интерполяция сэмпла по дробному индексу из Float32Array
+    function readSampleLinear(channelData, pos, maxIndex) {
+      if (pos <= 0) return channelData[0];
+      if (pos >= maxIndex) return channelData[maxIndex];
+      const idx0 = pos | 0;
+      const frac = pos - idx0;
+      const s0 = channelData[idx0];
+      const s1 = channelData[idx0 + 1];
+      return s0 + frac * (s1 - s0);
+    }
+
+    /**
+     * Главный цикл генерации PCM-аудио для всех 5 слоёв в реальном времени.
+     * Реализует двухгранульный синтез с окном Ханна (grainSize = 2048)
+     * для независимого сдвига питча (-48..+48 пт) и скорости (0.25x..10.00x).
+     */
+    function processAudioMix(event) {
+      const outL = event.outputBuffer.getChannelData(0);
+      const outR = event.outputBuffer.getChannelData(1);
+      const frameCount = outL.length;
+      const ctxSampleRate = event.outputBuffer.sampleRate;
+
+      // Очищаем выходные буферы
+      outL.fill(0);
+      outR.fill(0);
+
+      // Проверяем режим Solo среди всех слоёв
+      let anySolo = false;
+      for (let i = 0; i < LAYER_COUNT; i++) {
+        if (state.layers[i].solo) {
+          anySolo = true;
+          break;
+        }
+      }
+
+      const grainStep = 1.0 / GRAIN_SIZE;
+
+      // Обрабатываем каждый из 5 слоёв
+      for (let lIdx = 0; lIdx < LAYER_COUNT; lIdx++) {
+        const layer = state.layers[lIdx];
+        if (!layer.isPlaying || layer.currentIndex < 0) continue;
+
+        const track = layer.playlist[layer.currentIndex];
+        if (!track || track.status !== 'ready' || !track.audioBuffer) continue;
+
+        const buf = track.audioBuffer;
+        const totalSamples = buf.length;
+        if (totalSamples < 2) continue;
+
+        const maxIndex = totalSamples - 1;
+        const chL = buf.getChannelData(0);
+        const chR = buf.numberOfChannels > 1 ? buf.getChannelData(1) : chL;
+
+        // Итоговая громкость слоя с учётом Mute и Solo
+        const isAudible = !layer.muted && (!anySolo || layer.solo);
+        const layerGain = isAudible ? (layer.volume / 100) : 0;
+
+        const resampleRatio = buf.sampleRate / ctxSampleRate;
+        const speed = layer.playbackSpeed;
+        const pitchSemitones = layer.pitchSemitones;
+        const pitchRatio = Math.pow(2, pitchSemitones / 12);
+
+        const playheadStep = speed * resampleRatio;
+        const grainReadStep = pitchRatio * resampleRatio;
+        const isBypass = (pitchSemitones === 0) && (Math.abs(speed - 1.0) < 0.0001);
+
+        let playhead = layer.playhead;
+        let phase = layer.grainPhase;
+        let g1Start = layer.grain1Start;
+        let g2Start = layer.grain2Start;
+
+        for (let i = 0; i < frameCount; i++) {
+          // Проверка достижения конца трека
+          if (playhead >= totalSamples) {
+            if (layer.loopMode === 'track') {
+              playhead = playhead % totalSamples;
+              g1Start = playhead;
+              g2Start = playhead;
+            } else {
+              layer.isPlaying = false;
+              playhead = 0;
+              pendingEndedLayers.add(lIdx);
+              break;
+            }
+          }
+
+          if (layerGain > 0) {
+            if (isBypass) {
+              // Точный побитовый байпас с линейной интерполяцией при 0 пт и 1.00x
+              outL[i] += readSampleLinear(chL, playhead, maxIndex) * layerGain;
+              outR[i] += readSampleLinear(chR, playhead, maxIndex) * layerGain;
+            } else {
+              // Двухгранульный синтез с перекрытием 50% и окном Ханна:
+              // sin^2(pi * p1) + sin^2(pi * p2) === 1.0 (идеально ровная амплитуда без биений)
+              const prevPhase = phase;
+              phase += grainStep;
+
+              // Гранула 1 перезапускается при переходе фазы через 1.0
+              if (phase >= 1.0) {
+                phase -= 1.0;
+                g1Start = playhead;
+              }
+              // Гранула 2 перезапускается при переходе фазы через 0.5
+              if (prevPhase < 0.5 && phase >= 0.5) {
+                g2Start = playhead;
+              }
+
+              const p1 = phase;
+              const p2 = phase >= 0.5 ? (phase - 0.5) : (phase + 0.5);
+
+              // Окно Ханна: 0.5 * (1 - cos(2 * PI * p))
+              const w1 = 0.5 * (1.0 - Math.cos(6.283185307179586 * p1));
+              const w2 = 0.5 * (1.0 - Math.cos(6.283185307179586 * p2));
+
+              const readPos1 = g1Start + (p1 * GRAIN_SIZE) * grainReadStep;
+              const readPos2 = g2Start + (p2 * GRAIN_SIZE) * grainReadStep;
+
+              const s1L = readSampleLinear(chL, readPos1, maxIndex);
+              const s2L = readSampleLinear(chL, readPos2, maxIndex);
+              outL[i] += (s1L * w1 + s2L * w2) * layerGain;
+
+              const s1R = readSampleLinear(chR, readPos1, maxIndex);
+              const s2R = readSampleLinear(chR, readPos2, maxIndex);
+              outR[i] += (s1R * w1 + s2R * w2) * layerGain;
+            }
+          }
+
+          playhead += playheadStep;
+        }
+
+        layer.playhead = playhead;
+        layer.grainPhase = phase;
+        layer.grain1Start = g1Start;
+        layer.grain2Start = g2Start;
+      }
+
+      // Примешиваем встроенный тестовый сигнал ("Тест звука"), если он активен
+      if (chimeState.active) {
+        const sr = chimeState.sampleRate;
+        for (let i = 0; i < frameCount; i++) {
+          if (chimeState.sampleIndex >= chimeState.totalSamples) {
+            chimeState.active = false;
+            break;
+          }
+          const t = chimeState.sampleIndex / sr;
+          // Двухтоновый мягкий колокольчик (523.25 Гц До5 -> 659.25 Гц Ми5)
+          const freq = t < 0.16 ? 523.25 : 659.25;
+          const localT = t < 0.16 ? t : (t - 0.16);
+          const env = Math.min(1, localT * 80) * Math.exp(-localT * 9);
+          const sig = Math.sin(2 * Math.PI * freq * t) * 0.28 * env;
+          outL[i] += sig;
+          outR[i] += sig;
+          chimeState.sampleIndex++;
+        }
+      }
+
+      // Мягкий лимитер (soft clipper) при сложении 5 громких дорожек + замер выходного пика
+      let framePeak = 0;
+      const masterScalar = state.effectiveMasterVolume / 100;
+      for (let i = 0; i < frameCount; i++) {
+        let l = outL[i];
+        let r = outR[i];
+        if (l > 0.9 || l < -0.9) l = Math.tanh(l);
+        if (r > 0.9 || r < -0.9) r = Math.tanh(r);
+        outL[i] = l;
+        outR[i] = r;
+
+        const absMax = Math.max(Math.abs(l), Math.abs(r)) * masterScalar;
+        if (absMax > framePeak) framePeak = absMax;
+      }
+
+      masterPeakLevel = Math.max(framePeak, masterPeakLevel * 0.82);
+
+      // Если какой-то слой завершил трек, планируем переключение в основном потоке
+      if (pendingEndedLayers.size > 0 && !uiSyncScheduled) {
+        uiSyncScheduled = true;
+        setTimeout(flushPendingTrackTransitions, 0);
+      }
+    }
+
+    function flushPendingTrackTransitions() {
+      uiSyncScheduled = false;
+      const ended = Array.from(pendingEndedLayers);
+      pendingEndedLayers.clear();
+
+      ended.forEach(layerIdx => {
+        const layer = state.layers[layerIdx];
+        if (layer.loopMode === 'playlist' && layer.playlist.length > 0) {
+          nextTrack(layerIdx, true);
+        } else {
+          renderLayerCard(layerIdx);
+          updateActiveLayersCount();
+        }
+      });
+    }
+
+    function updateMasterGainNode(volumePercent) {
+      const clamped = Math.max(0, Math.min(100, volumePercent));
+      state.effectiveMasterVolume = clamped;
+      if (masterGainNode && audioCtx) {
+        masterGainNode.gain.setTargetAtTime(clamped / 100, audioCtx.currentTime, 0.04);
+      }
+      document.getElementById('effective-master-val').textContent = `${Math.round(clamped)}%`;
+      document.getElementById('final-gain-text').textContent = `${Math.round(clamped)}%`;
+      document.getElementById('applied-gain-bar').style.width = `${clamped}%`;
+    }
+
+    // =========================================================================
+    // 4. ЛЕНИВОЕ ДЕКОДИРОВАНИЕ ФАЙЛОВ В AUDIOBUFFER И УПРАВЛЕНИЕ СЛОЯМИ
+    // =========================================================================
+    async function decodeTrackOnDemand(layerIndex, trackIndex) {
+      const layer = state.layers[layerIndex];
+      if (!layer || trackIndex < 0 || trackIndex >= layer.playlist.length) return null;
+
+      const track = layer.playlist[trackIndex];
+      if (track.status === 'ready' && track.audioBuffer) {
+        return track.audioBuffer;
+      }
+      if (track.status === 'decoding' && track.decodePromise) {
+        return track.decodePromise;
+      }
+
+      track.status = 'decoding';
+      track.errorMsg = '';
+      renderLayerCard(layerIndex);
+
+      track.decodePromise = (async () => {
+        try {
+          const ctx = await ensureAudioResumed();
+          let arrayBuffer = null;
+
+          if (track.file && typeof track.file.arrayBuffer === 'function') {
+            try {
+              arrayBuffer = await track.file.arrayBuffer();
+            } catch (e) {
+              arrayBuffer = await readFileAsArrayBufferFallback(track.file);
+            }
+          } else if (track.file) {
+            arrayBuffer = await readFileAsArrayBufferFallback(track.file);
+          }
+
+          // Диагностика проблемы 0 байт в Android WebView
+          if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+            track.status = 'error';
+            track.errorMsg = '0 байт (WebView заблокировал файл)';
+            document.getElementById('webview-zero-bytes-banner').classList.remove('hidden');
+            showToast(`Файл "${track.fileName}" прочитан как 0 байт. Откройте страницу в Chrome.`, 'error');
+            renderLayerCard(layerIndex);
+            return null;
+          }
+
+          const decoded = await ctx.decodeAudioData(arrayBuffer);
+          track.audioBuffer = decoded;
+          track.duration = decoded.duration;
+          track.status = 'ready';
+          track.errorMsg = '';
+          renderLayerCard(layerIndex);
+          return decoded;
+        } catch (err) {
+          console.error('Ошибка декодирования аудио:', err);
+          track.status = 'error';
+          track.errorMsg = 'Ошибка декодирования (не аудиофайл)';
+          showToast(`Не удалось декодировать "${track.fileName}". Выберите WAV, MP3, OGG или M4A.`, 'error');
+          renderLayerCard(layerIndex);
+          return null;
+        } finally {
+          track.decodePromise = null;
+        }
+      })();
+
+      return track.decodePromise;
+    }
+
+    // Фоновое пред-декодирование следующего трека для бесшовных плейлистов
+    function predecodeNextTrackInBackground(layerIndex) {
+      const layer = state.layers[layerIndex];
+      if (layer.playlist.length <= 1) return;
+      const nextIdx = (layer.currentIndex + 1) % layer.playlist.length;
+      const nextTrackObj = layer.playlist[nextIdx];
+      if (nextTrackObj && nextTrackObj.status === 'queued') {
+        decodeTrackOnDemand(layerIndex, nextIdx);
+      }
+    }
+
+    async function selectTrack(layerIndex, trackIndex, autoPlay = false) {
+      const layer = state.layers[layerIndex];
+      if (!layer || trackIndex < 0 || trackIndex >= layer.playlist.length) return;
+
+      layer.isPlaying = false;
+      layer.currentIndex = trackIndex;
+      layer.playhead = 0;
+      layer.grainPhase = 0;
+      layer.grain1Start = 0;
+      layer.grain2Start = 0;
+
+      renderLayerCard(layerIndex);
+      updateActiveLayersCount();
+
+      const buf = await decodeTrackOnDemand(layerIndex, trackIndex);
+      if (buf && autoPlay && layer.currentIndex === trackIndex) {
+        await playLayer(layerIndex);
+      }
+    }
+
+    async function playLayer(layerIndex) {
+      const layer = state.layers[layerIndex];
+      if (layer.playlist.length === 0) {
+        showToast(`В "${layer.name}" нет треков. Нажмите «+ Файлы».`, 'warning');
+        return;
+      }
+
+      await ensureAudioResumed();
+
+      if (layer.currentIndex < 0 || layer.currentIndex >= layer.playlist.length) {
+        layer.currentIndex = 0;
+      }
+
+      const track = layer.playlist[layer.currentIndex];
+      if (track.status !== 'ready' || !track.audioBuffer) {
+        const buf = await decodeTrackOnDemand(layerIndex, layer.currentIndex);
+        if (!buf) return;
+      }
+
+      // Если воспроизведение уже дошло до самого конца, начинаем сначала
+      if (track.audioBuffer && layer.playhead >= track.audioBuffer.length - 2) {
+        layer.playhead = 0;
+      }
+
+      layer.grain1Start = layer.playhead;
+      layer.grain2Start = layer.playhead;
+      layer.grainPhase = 0;
+      layer.isPlaying = true;
+
+      renderLayerCard(layerIndex);
+      updateActiveLayersCount();
+      predecodeNextTrackInBackground(layerIndex);
+    }
+
+    function pauseLayer(layerIndex) {
+      const layer = state.layers[layerIndex];
+      layer.isPlaying = false;
+      renderLayerCard(layerIndex);
+      updateActiveLayersCount();
+    }
+
+    function stopLayer(layerIndex) {
+      const layer = state.layers[layerIndex];
+      layer.isPlaying = false;
+      layer.playhead = 0;
+      layer.grainPhase = 0;
+      layer.grain1Start = 0;
+      layer.grain2Start = 0;
+      renderLayerCard(layerIndex);
+      updateActiveLayersCount();
+    }
+
+    function nextTrack(layerIndex, autoPlay = true) {
+      const layer = state.layers[layerIndex];
+      if (layer.playlist.length === 0) return;
+
+      let nextIdx = layer.currentIndex + 1;
+      if (nextIdx >= layer.playlist.length) {
+        if (layer.loopMode === 'playlist') {
+          nextIdx = 0;
+        } else {
+          stopLayer(layerIndex);
+          return;
+        }
+      }
+      selectTrack(layerIndex, nextIdx, autoPlay);
+    }
+
+    function prevTrack(layerIndex) {
+      const layer = state.layers[layerIndex];
+      if (layer.playlist.length === 0) return;
+
+      const currentTrack = layer.playlist[layer.currentIndex];
+      const currentSec = (currentTrack && currentTrack.audioBuffer)
+        ? (layer.playhead / currentTrack.audioBuffer.sampleRate)
+        : 0;
+
+      if (currentSec > 3) {
+        layer.playhead = 0;
+        layer.grain1Start = 0;
+        layer.grain2Start = 0;
+        updateLayerProgressUI(layerIndex);
+        return;
+      }
+
+      let prevIdx = layer.currentIndex - 1;
+      if (prevIdx < 0) {
+        prevIdx = layer.playlist.length - 1;
+      }
+      selectTrack(layerIndex, prevIdx, layer.isPlaying);
+    }
+
+    function cycleLoopMode(layerIndex) {
+      const layer = state.layers[layerIndex];
+      const modes = ['playlist', 'track', 'none'];
+      layer.loopMode = modes[(modes.indexOf(layer.loopMode) + 1) % modes.length];
+      renderLayerCard(layerIndex);
+    }
+
+    function updateActiveLayersCount() {
+      const active = state.layers.filter(l => l.isPlaying).length;
+      document.getElementById('active-layers-status').textContent = `Активно слоёв: ${active} из ${LAYER_COUNT} • PCM`;
+    }
+
+    // Цикл обновления полос прогресса (60 fps) и пикового индикатора
+    function startUIAnimationLoop() {
+      function tick() {
+        for (let i = 0; i < LAYER_COUNT; i++) {
+          if (state.layers[i].isPlaying) {
+            updateLayerProgressUI(i);
+          }
+        }
+        const peakBar = document.getElementById('master-peak-bar');
+        if (peakBar) {
+          const pct = Math.min(100, Math.round(masterPeakLevel * 100));
+          peakBar.style.width = `${pct}%`;
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    // =========================================================================
+    // 5. ДЕТЕКТОР ОКРУЖАЮЩЕГО ШУМА И АДАПТИВНАЯ АВТОПОДСТРОЙКА
+    // =========================================================================
+    let micStream = null;
+    let micSource = null;
+    let micAnalyser = null;
+    let noiseAnimFrame = null;
+    let smoothedNoise = 0;
+    let smoothedOutputGain = state.masterVolume;
+
+    async function enableNoiseDetector() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast('Браузер не поддерживает доступ к микрофону.', 'error');
+        setNoiseToggleUI(false);
+        return;
+      }
+
+      try {
+        const ctx = await ensureAudioResumed();
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          }
+        });
+
+        micSource = ctx.createMediaStreamSource(micStream);
+        micAnalyser = ctx.createAnalyser();
+        micAnalyser.fftSize = 512;
+        micAnalyser.smoothingTimeConstant = 0.75;
+        micSource.connect(micAnalyser);
+
+        state.noiseAutoEnabled = true;
+        smoothedOutputGain = state.masterVolume;
+        setNoiseToggleUI(true);
+        showToast('Детектор шума включён. Громкость адаптируется под среду.', 'success');
+        startNoiseAnalysisLoop();
+      } catch (err) {
+        console.error('Ошибка доступа к микрофону:', err);
+        showToast('Нет доступа к микрофону. Разрешите доступ в настройках браузера.', 'error');
+        setNoiseToggleUI(false);
+      }
+    }
+
+    function disableNoiseDetector() {
+      state.noiseAutoEnabled = false;
+      if (noiseAnimFrame) {
+        cancelAnimationFrame(noiseAnimFrame);
+        noiseAnimFrame = null;
+      }
+      if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+        micStream = null;
+      }
+      if (micSource) {
+        try { micSource.disconnect(); } catch (e) {}
+        micSource = null;
+      }
+      micAnalyser = null;
+
+      updateMasterGainNode(state.masterVolume);
+      document.getElementById('gain-boost-text').textContent = '+0%';
+      setNoiseToggleUI(false);
+    }
+
+    function setNoiseToggleUI(enabled) {
+      const toggleBtn = document.getElementById('noise-auto-toggle');
+      const thumb = document.getElementById('noise-auto-thumb');
+      const indicator = document.getElementById('mic-indicator');
+      const meterContainer = document.getElementById('noise-meter-container');
+      const autoBadge = document.getElementById('auto-gain-badge');
+
+      toggleBtn.setAttribute('aria-checked', String(enabled));
+      if (enabled) {
+        toggleBtn.classList.remove('bg-slate-700');
+        toggleBtn.classList.add('bg-emerald-500');
+        thumb.classList.remove('translate-x-1');
+        thumb.classList.add('translate-x-6');
+        indicator.classList.remove('bg-slate-600');
+        indicator.classList.add('bg-emerald-400', 'animate-pulse');
+        meterContainer.classList.remove('hidden');
+        autoBadge.classList.remove('hidden');
+      } else {
+        toggleBtn.classList.add('bg-slate-700');
+        toggleBtn.classList.remove('bg-emerald-500');
+        thumb.classList.add('translate-x-1');
+        thumb.classList.remove('translate-x-6');
+        indicator.classList.add('bg-slate-600');
+        indicator.classList.remove('bg-emerald-400', 'animate-pulse');
+        autoBadge.classList.add('hidden');
+      }
+    }
+
+    function startNoiseAnalysisLoop() {
+      if (!micAnalyser || !state.noiseAutoEnabled) return;
+
+      const bufferLength = micAnalyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function analyze() {
+        if (!state.noiseAutoEnabled || !micAnalyser) return;
+
+        micAnalyser.getByteTimeDomainData(dataArray);
+
+        let sumSquares = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const normalized = (dataArray[i] - 128) / 128;
+          sumSquares += normalized * normalized;
+        }
+        const rms = Math.sqrt(sumSquares / bufferLength);
+
+        // Переводим RMS в шкалу 0..100%
+        const db = 20 * Math.log10(Math.max(rms, 0.0001));
+        const rawNoisePercent = Math.max(0, Math.min(100, ((db + 65) / 60) * 100));
+
+        smoothedNoise = smoothedNoise + (rawNoisePercent - smoothedNoise) * 0.2;
+        state.currentNoisePercent = smoothedNoise;
+
+        document.getElementById('noise-level-text').textContent = `${Math.round(smoothedNoise)}%`;
+        document.getElementById('noise-bar').style.width = `${smoothedNoise}%`;
+
+        // Пропорциональная компенсация: рост шума поднимает громкость, тишина опускает обратно
+        const noiseDelta = (smoothedNoise - 22) * state.sensitivity;
+        const targetVolume = state.masterVolume + noiseDelta + (state.snrOffset - 25) * 0.5;
+        const clampedTarget = Math.max(5, Math.min(100, targetVolume));
+
+        smoothedOutputGain = smoothedOutputGain + (clampedTarget - smoothedOutputGain) * state.smoothing;
+        updateMasterGainNode(smoothedOutputGain);
+
+        const deltaFromBase = Math.round(smoothedOutputGain - state.masterVolume);
+        const sign = deltaFromBase >= 0 ? '+' : '';
+        document.getElementById('gain-boost-text').textContent = `${sign}${deltaFromBase}%`;
+
+        noiseAnimFrame = requestAnimationFrame(analyze);
+      }
+
+      noiseAnimFrame = requestAnimationFrame(analyze);
+    }
+
+    // =========================================================================
+    // 6. РЕНДЕРИНГ ИНТЕРФЕЙСА СЛОЁВ И СТАТУСОВ ТРЕКОВ
+    // =========================================================================
+    function getTrackStatusBadgeHTML(track) {
+      if (!track) {
+        return `<span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-800 text-slate-400">Пусто</span>`;
+      }
+      if (track.status === 'decoding') {
+        return `<span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">Декодирование...</span>`;
+      }
+      if (track.status === 'ready') {
+        return `<span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 tabular-nums">Готов • ${formatTime(track.duration)}</span>`;
+      }
+      if (track.status === 'error') {
+        return `<span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/40">${escapeHtml(track.errorMsg || 'Ошибка')}</span>`;
+      }
+      return `<span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">В очереди</span>`;
+    }
+
+    function renderAllLayers() {
+      const container = document.getElementById('layers-container');
+      container.innerHTML = '';
+      state.layers.forEach((_, idx) => {
+        const wrapper = document.createElement('div');
+        wrapper.id = `layer-card-${idx}`;
+        container.appendChild(wrapper);
+        renderLayerCard(idx);
+      });
+    }
+
+    function renderLayerCard(index) {
+      const layer = state.layers[index];
+      const theme = LAYER_THEMES[index];
+      const wrapper = document.getElementById(`layer-card-${index}`);
+      if (!wrapper) return;
+
+      const currentTrack = layer.currentIndex >= 0 ? layer.playlist[layer.currentIndex] : null;
+      const trackTitle = currentTrack ? currentTrack.name : 'Файл не выбран';
+      const isReady = currentTrack && currentTrack.status === 'ready' && currentTrack.audioBuffer;
+
+      const loopConfig = {
+        playlist: { label: 'Повтор списка', icon: '🔁' },
+        track: { label: 'Повтор 1 трека', icon: '🔂' },
+        none: { label: 'Без повтора', icon: '➡️' }
+      };
+
+      wrapper.innerHTML = `
+        <section class="bg-studio-900 rounded-2xl border ${layer.isPlaying ? theme.border : 'border-slate-800/90'} p-3.5 shadow-xl transition-colors">
+          <!-- Шапка слоя: Номер, Статус, Название трека, Кнопка + Файлы -->
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="min-w-0 flex-1 space-y-1">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="px-2 py-0.5 rounded-md text-[11px] font-bold border ${theme.badge}">${layer.name}</span>
+                <span class="text-[11px] text-slate-400">Треков: ${layer.playlist.length}</span>
+                ${currentTrack ? getTrackStatusBadgeHTML(currentTrack) : ''}
+                ${layer.solo ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">SOLO</span>' : ''}
+              </div>
+              <h2 class="text-sm font-semibold text-slate-100 truncate" title="${escapeHtml(trackTitle)}">${escapeHtml(trackTitle)}</h2>
+            </div>
+
+            <button onclick="openFilePicker(${index})" class="min-h-[40px] shrink-0 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-sky-400 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Файлы</span>
+            </button>
+          </div>
+
+          <!-- Полоса перемотки и время MM:SS / MM:SS -->
+          <div class="mb-2.5">
+            <input type="range" id="seek-${index}" min="0" max="100" value="0" step="0.1"
+              oninput="handleSeek(${index}, this.value)"
+              class="w-full compact-slider" ${!isReady ? 'disabled' : ''} />
+            <div class="flex justify-between text-[11px] text-slate-400 tabular-nums px-0.5">
+              <span id="time-curr-${index}">0:00</span>
+              <span id="time-dur-${index}">${isReady ? formatTime(currentTrack.duration) : '0:00'}</span>
+            </div>
+          </div>
+
+          <!-- Панель транспорта: Пред., Пуск/Пауза, Стоп, След., Повтор, Список -->
+          <div class="flex items-center justify-between gap-1.5 mb-2.5">
+            <div class="flex items-center gap-1.5">
+              <button onclick="prevTrack(${index})" title="Предыдущий трек" class="min-h-[40px] min-w-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 flex items-center justify-center transition">
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+              </button>
+
+              <button id="play-btn-${index}" onclick="togglePlayLayer(${index})" class="min-h-[40px] px-3.5 rounded-xl ${layer.isPlaying ? 'bg-amber-600 hover:bg-amber-500' : 'bg-sky-600 hover:bg-sky-500'} active:scale-95 text-white font-semibold text-xs flex items-center gap-1.5 transition shadow-md">
+                ${layer.isPlaying
+                  ? '<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg><span>Пауза</span>'
+                  : '<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Пуск</span>'
+                }
+              </button>
+
+              <button onclick="stopLayer(${index})" title="Стоп" class="min-h-[40px] min-w-[40px] rounded-xl bg-slate-800 hover:bg-rose-950/70 active:scale-95 text-slate-300 hover:text-rose-300 flex items-center justify-center transition">
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+              </button>
+
+              <button onclick="nextTrack(${index}, true)" title="Следующий трек" class="min-h-[40px] min-w-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 flex items-center justify-center transition">
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+              </button>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <button onclick="cycleLoopMode(${index})" title="${loopConfig[layer.loopMode].label}" class="min-h-[40px] min-w-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700/80 flex items-center justify-center transition">
+                <span>${loopConfig[layer.loopMode].icon}</span>
+              </button>
+
+              <button onclick="togglePlaylistDrawer(${index})" class="min-h-[40px] px-2.5 rounded-xl ${layer.playlistExpanded ? 'bg-sky-950/80 border-sky-500/50 text-sky-300' : 'bg-slate-800 border-slate-700/80 text-slate-300'} border text-xs font-semibold flex items-center gap-1 transition">
+                <span>Список</span>
+                <svg class="w-3.5 h-3.5 transition-transform ${layer.playlistExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Регулятор громкости слоя + Mute (M) / Solo (S) -->
+          <div class="flex items-center gap-2 bg-studio-950/75 p-2 rounded-xl border border-slate-800/80">
+            <button onclick="toggleMute(${index})" class="min-h-[40px] min-w-[40px] rounded-lg flex items-center justify-center text-xs font-bold transition ${layer.muted ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}" title="Mute (отключить звук слоя)">
+              M
+            </button>
+            <button onclick="toggleSolo(${index})" class="min-h-[40px] min-w-[40px] rounded-lg flex items-center justify-center text-xs font-bold transition ${layer.solo ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}" title="Solo (только этот слой)">
+              S
+            </button>
+
+            <div class="flex-1 flex items-center gap-2">
+              <input type="range" min="0" max="100" value="${layer.volume}"
+                oninput="handleLayerVolume(${index}, this.value)"
+                class="w-full" />
+              <span id="vol-label-${index}" class="w-10 text-right text-xs font-bold tabular-nums ${theme.accent}">${layer.volume}%</span>
+            </div>
+          </div>
+
+          <!-- Независимые регуляторы Питча (-48..+48 пт) и Скорости (0.25x..10.00x) -->
+          <div class="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <!-- Блок Питча -->
+            <div class="bg-studio-950/75 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-[11px] font-medium text-slate-300 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                  Питч:
+                  <strong id="pitch-label-${index}" class="text-purple-300 tabular-nums">${layer.pitchSemitones > 0 ? '+' + layer.pitchSemitones : layer.pitchSemitones} пт</strong>
+                </span>
+                <div class="flex items-center gap-1">
+                  <button onclick="stepLayerPitch(${index}, -1)" class="min-h-[32px] min-w-[32px] rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-bold flex items-center justify-center" title="-1 полутон">−1</button>
+                  <button onclick="stepLayerPitch(${index}, 1)" class="min-h-[32px] min-w-[32px] rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-bold flex items-center justify-center" title="+1 полутон">+1</button>
+                  <button onclick="setLayerPitch(${index}, 0)" class="min-h-[32px] px-2 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 active:scale-95 text-purple-300 border border-purple-500/30 text-[11px] font-bold" title="Сбросить питч (0)">0</button>
+                </div>
+              </div>
+              <input type="range" id="pitch-slider-${index}" min="-48" max="48" step="1" value="${layer.pitchSemitones}"
+                oninput="setLayerPitch(${index}, this.value)"
+                class="w-full compact-slider pitch-slider" />
+              <div class="flex justify-between text-[9px] text-slate-500 tabular-nums px-0.5">
+                <span>-48</span>
+                <span>-24</span>
+                <span>0</span>
+                <span>+24</span>
+                <span>+48</span>
+              </div>
+            </div>
+
+            <!-- Блок Скорости (до 10.00x с сохранением высоты тона) -->
+            <div class="bg-studio-950/75 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-[11px] font-medium text-slate-300 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  Скорость:
+                  <strong id="speed-label-${index}" class="text-emerald-300 tabular-nums">${layer.playbackSpeed.toFixed(2)}x</strong>
+                </span>
+                <div class="flex items-center gap-1">
+                  <button onclick="stepLayerSpeed(${index}, -0.1)" class="min-h-[32px] min-w-[32px] rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-bold flex items-center justify-center" title="Медленнее (−0.1x)">−</button>
+                  <button onclick="stepLayerSpeed(${index}, 0.1)" class="min-h-[32px] min-w-[32px] rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-bold flex items-center justify-center" title="Быстрее (+0.1x)">+</button>
+                  <button onclick="setLayerSpeed(${index}, 1.0)" class="min-h-[32px] px-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold" title="Сбросить скорость (1x)">1x</button>
+                </div>
+              </div>
+              <input type="range" id="speed-slider-${index}" min="0.25" max="10" step="0.05" value="${layer.playbackSpeed}"
+                oninput="setLayerSpeed(${index}, this.value)"
+                class="w-full compact-slider speed-slider" />
+              <div class="flex justify-between gap-1">
+                <button onclick="setLayerSpeed(${index}, 0.5)" class="flex-1 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 font-semibold">0.5x</button>
+                <button onclick="setLayerSpeed(${index}, 1.0)" class="flex-1 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 font-semibold">1x</button>
+                <button onclick="setLayerSpeed(${index}, 2.0)" class="flex-1 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 font-semibold">2x</button>
+                <button onclick="setLayerSpeed(${index}, 5.0)" class="flex-1 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 font-semibold">5x</button>
+                <button onclick="setLayerSpeed(${index}, 10.0)" class="flex-1 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 font-semibold">10x</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Выпадающий плейлист слоя -->
+          ${layer.playlistExpanded ? renderPlaylistHTML(index) : ''}
+        </section>
+      `;
+
+      updateLayerProgressUI(index);
+    }
+
+    function renderPlaylistHTML(index) {
+      const layer = state.layers[index];
+      if (layer.playlist.length === 0) {
+        return `
+          <div class="mt-3 pt-3 border-t border-slate-800 text-center py-4">
+            <p class="text-xs text-slate-400 mb-2">Плейлист этого слоя пуст</p>
+            <button onclick="openFilePicker(${index})" class="min-h-[40px] px-3.5 py-2 rounded-xl bg-sky-600/20 text-sky-400 border border-sky-500/40 text-xs font-semibold">
+              + Выбрать аудиофайлы с устройства
+            </button>
+          </div>
+        `;
+      }
+
+      const itemsHtml = layer.playlist.map((track, tIdx) => {
+        const isCurrent = tIdx === layer.currentIndex;
+        return `
+          <div class="flex items-center justify-between gap-2 p-2 rounded-xl ${isCurrent ? 'bg-sky-950/70 border border-sky-500/40' : 'bg-slate-800/60 hover:bg-slate-800'} transition">
+            <button onclick="selectTrack(${index}, ${tIdx}, true)" class="flex-1 min-w-0 text-left flex flex-col gap-0.5 py-0.5">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-mono text-slate-400">${tIdx + 1}.</span>
+                <span class="text-xs truncate ${isCurrent ? 'text-sky-300 font-semibold' : 'text-slate-200'}">${escapeHtml(track.name)}</span>
+              </div>
+              <div class="pl-4">
+                ${getTrackStatusBadgeHTML(track)}
+              </div>
+            </button>
+            <div class="flex items-center gap-1 shrink-0">
+              ${tIdx > 0 ? `<button onclick="moveTrack(${index}, ${tIdx}, -1)" class="min-h-[34px] min-w-[30px] rounded-lg bg-slate-900/80 text-slate-300 hover:text-white text-xs" title="Вверх">↑</button>` : ''}
+              ${tIdx < layer.playlist.length - 1 ? `<button onclick="moveTrack(${index}, ${tIdx}, 1)" class="min-h-[34px] min-w-[30px] rounded-lg bg-slate-900/80 text-slate-300 hover:text-white text-xs" title="Вниз">↓</button>` : ''}
+              <button onclick="removeTrack(${index}, ${tIdx})" class="min-h-[34px] min-w-[30px] rounded-lg bg-slate-900/80 text-slate-400 hover:text-rose-400 text-xs font-bold" title="Удалить">×</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const modeNames = {
+        playlist: 'Повтор списка',
+        track: 'Повтор 1 трека',
+        none: 'Без повтора'
+      };
+
+      return `
+        <div class="mt-3 pt-3 border-t border-slate-800 space-y-2">
+          <div class="flex items-center justify-between text-[11px] text-slate-400 px-1">
+            <span>Режим: <strong class="text-slate-200">${modeNames[layer.loopMode]}</strong></span>
+            <button onclick="clearPlaylist(${index})" class="text-rose-400 hover:underline font-medium">Очистить список</button>
+          </div>
+          <div class="max-h-56 overflow-y-auto space-y-1.5 pr-0.5">
+            ${itemsHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    function updateLayerProgressUI(index) {
+      const layer = state.layers[index];
+      const seekEl = document.getElementById(`seek-${index}`);
+      const currEl = document.getElementById(`time-curr-${index}`);
+      const durEl = document.getElementById(`time-dur-${index}`);
+      if (!seekEl || !currEl || !durEl) return;
+
+      const track = layer.currentIndex >= 0 ? layer.playlist[layer.currentIndex] : null;
+      if (!track || track.status !== 'ready' || !track.audioBuffer) {
+        currEl.textContent = '0:00';
+        durEl.textContent = '0:00';
+        seekEl.value = 0;
+        return;
+      }
+
+      const buf = track.audioBuffer;
+      const currentSec = Math.min(buf.duration, Math.max(0, layer.playhead / buf.sampleRate));
+      currEl.textContent = formatTime(currentSec);
+      durEl.textContent = formatTime(buf.duration);
+      seekEl.value = buf.duration > 0 ? (currentSec / buf.duration) * 100 : 0;
+    }
+
+    // =========================================================================
+    // 7. ОБРАБОТЧИКИ ДЕЙСТВИЙ ПОЛЬЗОВАТЕЛЯ
+    // =========================================================================
+    window.openFilePicker = function(layerIndex) {
+      ensureAudioResumed();
+      state.targetFileLayerIndex = layerIndex;
+      const input = document.getElementById('global-file-input');
+      input.value = '';
+      input.click();
+    };
+
+    document.getElementById('global-file-input').addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files || []);
+      const layerIndex = state.targetFileLayerIndex;
+      if (layerIndex === null || files.length === 0) return;
+
+      await ensureAudioResumed();
+
+      const layer = state.layers[layerIndex];
+      const wasEmpty = layer.playlist.length === 0;
+      let zeroByteCount = 0;
+
+      files.forEach(file => {
+        if (file.size === 0) {
+          zeroByteCount++;
+        }
+        layer.playlist.push({
+          id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + Math.random()),
+          name: file.name.replace(/\.[^/.]+$/, '') || file.name,
+          fileName: file.name,
+          fileSize: file.size,
+          file: file,
+          audioBuffer: null,
+          duration: 0,
+          status: 'queued',
+          errorMsg: ''
+        });
+      });
+
+      layer.playlistExpanded = true;
+
+      if (zeroByteCount > 0) {
+        document.getElementById('webview-zero-bytes-banner').classList.remove('hidden');
+      }
+
+      if (wasEmpty) {
+        await selectTrack(layerIndex, 0, false);
+      } else {
+        renderLayerCard(layerIndex);
+      }
+
+      showToast(`Добавлено файлов в "${layer.name}": ${files.length}`, 'success');
+    });
+
+    window.togglePlayLayer = async function(index) {
+      const layer = state.layers[index];
+      if (layer.isPlaying) {
+        pauseLayer(index);
+      } else {
+        await playLayer(index);
+      }
+    };
+
+    window.handleSeek = function(index, percent) {
+      const layer = state.layers[index];
+      const track = layer.currentIndex >= 0 ? layer.playlist[layer.currentIndex] : null;
+      if (track && track.status === 'ready' && track.audioBuffer) {
+        const newPos = Math.floor((percent / 100) * (track.audioBuffer.length - 1));
+        layer.playhead = Math.max(0, newPos);
+        layer.grain1Start = layer.playhead;
+        layer.grain2Start = layer.playhead;
+        updateLayerProgressUI(index);
+      }
+    };
+
+    window.handleLayerVolume = function(index, val) {
+      const layer = state.layers[index];
+      layer.volume = Number(val);
+      if (layer.volume > 0 && layer.muted) {
+        layer.muted = false;
+      }
+      const label = document.getElementById(`vol-label-${index}`);
+      if (label) label.textContent = `${layer.volume}%`;
+    };
+
+    window.setLayerPitch = function(index, semitones) {
+      const layer = state.layers[index];
+      const clamped = Math.max(-48, Math.min(48, Math.round(Number(semitones))));
+      layer.pitchSemitones = clamped;
+
+      const label = document.getElementById(`pitch-label-${index}`);
+      if (label) {
+        label.textContent = `${clamped > 0 ? '+' + clamped : clamped} пт`;
+      }
+      const slider = document.getElementById(`pitch-slider-${index}`);
+      if (slider && Number(slider.value) !== clamped) {
+        slider.value = clamped;
+      }
+    };
+
+    window.stepLayerPitch = function(index, delta) {
+      setLayerPitch(index, state.layers[index].pitchSemitones + delta);
+    };
+
+    window.setLayerSpeed = function(index, speed) {
+      const layer = state.layers[index];
+      const clamped = Math.max(0.25, Math.min(10.0, Number(Number(speed).toFixed(2))));
+      layer.playbackSpeed = clamped;
+
+      const label = document.getElementById(`speed-label-${index}`);
+      if (label) {
+        label.textContent = `${clamped.toFixed(2)}x`;
+      }
+      const slider = document.getElementById(`speed-slider-${index}`);
+      if (slider && Math.abs(Number(slider.value) - clamped) > 0.001) {
+        slider.value = clamped;
+      }
+    };
+
+    window.stepLayerSpeed = function(index, delta) {
+      setLayerSpeed(index, state.layers[index].playbackSpeed + delta);
+    };
+
+    window.toggleMute = function(index) {
+      state.layers[index].muted = !state.layers[index].muted;
+      renderLayerCard(index);
+    };
+
+    window.toggleSolo = function(index) {
+      state.layers[index].solo = !state.layers[index].solo;
+      state.layers.forEach((_, idx) => renderLayerCard(idx));
+    };
+
+    window.togglePlaylistDrawer = function(index) {
+      state.layers[index].playlistExpanded = !state.layers[index].playlistExpanded;
+      renderLayerCard(index);
+    };
+
+    window.removeTrack = function(layerIndex, trackIndex) {
+      const layer = state.layers[layerIndex];
+      const removed = layer.playlist.splice(trackIndex, 1)[0];
+      if (removed) {
+        removed.audioBuffer = null;
+        removed.file = null;
+      }
+
+      if (layer.playlist.length === 0) {
+        stopLayer(layerIndex);
+        layer.currentIndex = -1;
+      } else if (trackIndex === layer.currentIndex) {
+        const wasPlaying = layer.isPlaying;
+        const nextIdx = Math.min(trackIndex, layer.playlist.length - 1);
+        selectTrack(layerIndex, nextIdx, wasPlaying);
+        return;
+      } else if (trackIndex < layer.currentIndex) {
+        layer.currentIndex--;
+      }
+      renderLayerCard(layerIndex);
+    };
+
+    window.moveTrack = function(layerIndex, trackIndex, direction) {
+      const layer = state.layers[layerIndex];
+      const targetIndex = trackIndex + direction;
+      if (targetIndex < 0 || targetIndex >= layer.playlist.length) return;
+
+      const temp = layer.playlist[trackIndex];
+      layer.playlist[trackIndex] = layer.playlist[targetIndex];
+      layer.playlist[targetIndex] = temp;
+
+      if (layer.currentIndex === trackIndex) {
+        layer.currentIndex = targetIndex;
+      } else if (layer.currentIndex === targetIndex) {
+        layer.currentIndex = trackIndex;
+      }
+      renderLayerCard(layerIndex);
+    };
+
+    window.clearPlaylist = function(layerIndex) {
+      const layer = state.layers[layerIndex];
+      stopLayer(layerIndex);
+      layer.playlist.forEach(t => {
+        t.audioBuffer = null;
+        t.file = null;
+      });
+      layer.playlist = [];
+      layer.currentIndex = -1;
+      renderLayerCard(layerIndex);
+    };
+
+    // =========================================================================
+    // 8. ОБЩЕЕ УПРАВЛЕНИЕ (МАСТЕР-КНОПКИ, ТЕСТ ЗВУКА И ШУМОМЕР)
+    // =========================================================================
+    document.getElementById('test-sound-btn').addEventListener('click', async () => {
+      const ctx = await ensureAudioResumed();
+      chimeState.sampleRate = ctx.sampleRate;
+      chimeState.totalSamples = Math.floor(ctx.sampleRate * 0.45);
+      chimeState.sampleIndex = 0;
+      chimeState.active = true;
+      showToast(`Тестовый сигнал отправлен (громкость: ${Math.round(state.effectiveMasterVolume)}%)`, 'info');
+    });
+
+    document.getElementById('master-play-btn').addEventListener('click', async () => {
+      await ensureAudioResumed();
+      let playedAny = false;
+      for (let idx = 0; idx < LAYER_COUNT; idx++) {
+        if (state.layers[idx].playlist.length > 0) {
+          playLayer(idx);
+          playedAny = true;
+        }
+      }
+      if (!playedAny) {
+        showToast('Добавьте аудиофайлы хотя бы в один слой.', 'warning');
+      }
+    });
+
+    document.getElementById('master-pause-btn').addEventListener('click', () => {
+      state.layers.forEach((_, idx) => pauseLayer(idx));
+    });
+
+    document.getElementById('master-stop-btn').addEventListener('click', () => {
+      state.layers.forEach((_, idx) => stopLayer(idx));
+    });
+
+    document.getElementById('master-volume-slider').addEventListener('input', (e) => {
+      state.masterVolume = Number(e.target.value);
+      document.getElementById('master-volume-label').textContent = `${state.masterVolume}%`;
+      if (!state.noiseAutoEnabled) {
+        updateMasterGainNode(state.masterVolume);
+      }
+    });
+
+    document.getElementById('noise-auto-toggle').addEventListener('click', async () => {
+      if (state.noiseAutoEnabled) {
+        disableNoiseDetector();
+        showToast('Автоподстройка под шум отключена.', 'info');
+      } else {
+        await enableNoiseDetector();
+      }
+    });
+
+    document.getElementById('toggle-noise-settings-btn').addEventListener('click', () => {
+      document.getElementById('noise-meter-container').classList.toggle('hidden');
+    });
+
+    document.getElementById('snr-ratio-slider').addEventListener('input', (e) => {
+      state.snrOffset = Number(e.target.value);
+      const sign = state.snrOffset > 0 ? '+' : '';
+      document.getElementById('snr-ratio-label').textContent = `${sign}${state.snrOffset}%`;
+    });
+
+    document.getElementById('sensitivity-slider').addEventListener('input', (e) => {
+      state.sensitivity = Number(e.target.value) / 10;
+      document.getElementById('sensitivity-label').textContent = `${state.sensitivity.toFixed(1)}x`;
+    });
+
+    document.getElementById('smoothing-slider').addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      state.smoothing = 0.02 + (val / 10) * 0.33;
+      const labels = ['Макс. плавно', 'Очень плавно', 'Плавно', 'Мягко', 'Средняя', 'Умеренно', 'Быстро', 'Резво', 'Очень быстро', 'Мгновенно'];
+      document.getElementById('smoothing-label').textContent = labels[val - 1] || 'Средняя';
+    });
+
+    // Запуск интерфейса и цикла анимации
+    renderAllLayers();
+    startUIAnimationLoop();
+  </script>
+</body>
+</html>
